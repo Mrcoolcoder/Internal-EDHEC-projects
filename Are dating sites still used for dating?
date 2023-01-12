@@ -1,0 +1,225 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Dec  5 20:09:36 2022
+
+@author: absluthra
+
+"""
+# Research Methodology Project - Launch a survey and analyse the results (>=30 respondents)
+## Topic - Are dating apps really used for dating?
+### Submitted to - Cédric Verbeeck
+#### Submitted by - Abhishek Luthra
+
+
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib as plt
+
+df = pd.read_csv('datings123.csv')
+
+df.drop(['StartDate', 'EndDate', 'Status', 'IPAddress', 'Progress',
+       'Duration (in seconds)', 'Finished', 'RecordedDate', 'ResponseId',
+       'RecipientLastName', 'RecipientFirstName', 'RecipientEmail',
+       'ExternalReference', 'LocationLatitude', 'LocationLongitude',
+       'DistributionChannel', 'UserLanguage', 'Q13', 'Q2'], axis = 1, inplace = True)
+
+dff = df.loc[df['Q1'] == 'Yes']
+
+#filling the missing value of age with males
+
+dff['Q8'].value_counts()
+dff['Q8']=dff['Q8'].fillna(dff['Q8'].mode()[0])
+dff.isnull().sum()
+
+#visit is a binary nominal variable
+dff["Visit"]=0
+dff.loc[dff.Q1=="Yes","Visit"]=1
+
+#Gender is a binary nominal variable (female=0,male=1)
+dff["Gender"]=0
+dff.loc[dff.Q8=="Male","Gender"]=1
+
+#Look_out is a nominal variable
+
+dff['Look_out']=0
+dff.loc[dff.Q4 =='Dating (looking out for exclusive romantic partner)', 'Look_out'] = 1
+dff.loc[dff.Q4 =='Somewhat Casual (not serious)' ,'Look_out'] = 2
+dff.loc[dff.Q4 =='Exploring different kinds of people (for fun)','Look_out'] = 3
+dff.loc[dff.Q4 =='Finding friends ', 'Look_out'] = 4
+dff.loc[dff.Q4 =='To boost self-esteem', 'Look_out'] = 5
+
+#Dating_pref is a nominal variable
+
+dff['Dating_pref'] = 0 
+
+dff.loc[dff.Q5 =='Yes, I am looking for more casual encounters, rather than serious dating.','Dating_pref'] = 1
+dff.loc[dff.Q5 =='Yes, I am looking to date someone seriously, rather than associating in a casual setting.    ', 'Dating_pref'] = 2
+dff.loc[dff.Q5 =='Yes, I am looking for Open relationships.','Dating_pref'] = 3
+dff.loc[dff.Q5 =='Yes, I am looking for friendship on dating apps.', 'Dating_pref'] = 4
+dff.loc[dff.Q5 =='No, my preferences always remain the same. ', 'Dating_pref'] = 5
+
+#Factors is a nominal variable
+
+dff['Factors']=0
+dff.loc[dff.Q6 =='Attractive Physical features (like Pictures)', 'Factors'] = 1
+dff.loc[dff.Q6 =='Conversational skills' ,'Factors'] = 2
+dff.loc[dff.Q6 =='Matching interests', 'Factors'] = 3
+dff.loc[dff.Q6 =='Casual setting. ', 'Factors'] = 4
+dff.loc[dff.Q6 =='Others (like similar ethnicity, religion etc.)', 'Factors'] = 5
+
+
+#Age is a nominal variable
+
+dff['Age']=0
+
+dff.loc[dff.Q9 =='Below 18', 'Age'] = 1
+dff.loc[dff.Q9 =='Between 18 and 23' ,'Age'] = 2
+dff.loc[dff.Q9 =='Between 24 and 29', 'Age'] = 3
+dff.loc[dff.Q9 =='Between 29 and 35', 'Age'] = 4
+dff.loc[dff.Q9 =='Above 35', 'Age'] = 5
+
+#Rate is a nominal variable
+
+dff['Rate']=0
+
+dff.loc[dff.Q7 =='0-3 = Awful', 'Rate'] = 1
+dff.loc[dff.Q7 =='4 = Not so good', 'Rate'] = 2
+dff.loc[dff.Q7 =='5-6 = Average ', 'Rate'] = 3
+dff.loc[dff.Q7 =='7 = Good', 'Rate'] = 4
+dff.loc[dff.Q7 =='8 = Great ', 'Rate'] = 5
+dff.loc[dff.Q7 =='9-10 = Extremely satisfied', 'Rate'] = 6
+
+dff.isnull().sum()
+
+#Descriptive statistics
+
+dff.describe()
+#1: difference in mean satisfaction between 2 groups (Males and Females)
+#############################################################
+
+
+#gender division
+male_mean = np.mean(dff.loc[dff["Gender"]==1,"Rate"])#3.91
+female_mean = np.mean(dff.loc[dff["Gender"]==0,"Rate"])#3.73
+
+#males seem to be more satisfied but is this effect significant?
+#Research question 1: Is there a difference between the gender of a student and his/her satisfaction of the dating app
+#H0: no there is no difference (mean satisfaction male=mean satisfaction female)
+#H1: yes there is a difference
+
+# we need a t-test to test the difference in means between 2 levels of a categorical variable
+ 
+#Assumption t-test:
+#Observations in two groups have an approximately normal distribution (Shapiro-Wilks Test)
+#Homogeneity of variances (variances are equal between treatment groups) (Levene or Bartlett Test)
+#The two groups are sampled independently from each other from the same population
+
+#Two sample t-test is relatively robust to the assumption of normality and homogeneity of variances when sample size is large (n ≥ 30) and there are equal number of samples (n1 = n2) in both groups.
+
+import statsmodels.stats.weightstats as smtest
+
+y1 = dff.loc[dff["Gender"]==1,"Rate"]
+y2 = dff.loc[dff["Gender"]==0,"Rate"]
+test=smtest.ttest_ind(y1, y2,alternative="two-sided",usevar="pooled")#equal variances assumed
+test
+
+#normal distribution check
+#H0: group data is normally distributed
+#H1: group data is not normally distributed
+from scipy import stats
+shapiro_test = stats.shapiro(y1)
+shapiro_test = stats.shapiro(y2)
+shapiro_test
+#p-value is greater than 0.05, so we fails to reject H0 at 5% significance, the sample is normally distributed
+
+#Equal variance checkm: visual check
+dff.boxplot(column='Rate',by='Gender')
+plt.pyplot.title("Mean satisfaction level between Females(0) and Males(1) ")
+plt.pyplot.show()
+
+#using Levene's equal variance test:
+#H0:sigma1=sigma2
+#H1:sigma1 different from sigma 2
+import scipy.stats as stats
+stats.levene(y1, y2,center='mean')
+
+#here, there are 2 observations:
+
+#1. Data is distributed normally(shapiro test)
+
+#2. P-value is greater than 5%, we fails to reject H0, and conclude there is not significant difference between mean significant levels between Males and Females(Levene test). Thus, Males and Females, both have same satisfaction level from using dating apps.
+
+#2: difference in means between more than 2 groups (k) of 1 categorical variable
+#########################################################################################
+
+#Research question 2: is there a difference in satisfaction among the three different student types
+#H0: all means are equal
+#H1: at least 1 mean is not equal to the others
+
+#descriptive statistics
+
+np.mean(dff.loc[dff["Dating_pref"]==1,"Rate"])
+np.mean(dff.loc[dff["Dating_pref"]==2,"Rate"])
+np.mean(dff.loc[dff["Dating_pref"]==3,"Rate"])
+np.mean(dff.loc[dff["Dating_pref"]==4,"Rate"])
+np.mean(dff.loc[dff["Dating_pref"]==5,"Rate"])
+
+satisfaction_Dating_pref=dff["Rate"].groupby(dff['Dating_pref']).mean()
+satisfaction_Dating_pref
+
+#Dating Preference of 'Dating seriously rather than Casual dating (option 2)' seems to be more satisfied but is this effect significant ?
+
+stats.levene(dff.loc[dff["Dating_pref"]==1,"Rate"], 
+             dff.loc[dff["Dating_pref"]==2,"Rate"],
+             dff.loc[dff["Dating_pref"]==3,"Rate"],
+             dff.loc[dff["Dating_pref"]==4,"Rate"],
+             dff.loc[dff["Dating_pref"]==5,"Rate"],center='mean')
+
+import statsmodels.api as sm#anova test
+import statsmodels.formula.api as smf#used for fitting models
+from statsmodels.stats.multicomp import pairwise_tukeyhsd#used for tukey test
+
+res = smf.ols('Rate ~ Dating_pref',data=dff).fit()
+table = sm.stats.anova_lm(res, typ=1)
+#p-value is  bigger than 0.05, so we don't reject H0, the difference is not significant
+#Perform multiple pairwise comparison (Tukey HSD)
+tukeytable=pairwise_tukeyhsd(endog=dff['Rate'], groups=dff['Dating_pref'], alpha=0.05)
+print(tukeytable)
+print(table)
+
+# All individual p-values are higher than 0.05, we don't reject H0, and conclude that, there are no signficant pairwise differences across Dating Preferences. Moreover, we can also conclude that its a borderline case.
+
+#Research question 3: is there a difference in satisfaction among the 5 different Factors
+#H0: all means are equal
+#H1: at least 1 mean is not equal to the others
+#descriptive statistics
+np.mean(dff.loc[dff["Factors"]==1,"Rate"])
+np.mean(dff.loc[dff["Factors"]==2,"Rate"])
+np.mean(dff.loc[dff["Factors"]==3,"Rate"])
+np.mean(dff.loc[dff["Factors"]==4,"Rate"])
+
+satisfaction_Factors=dff["Rate"].groupby(dff['Factors']).mean()
+satisfaction_Factors
+
+stats.levene(dff.loc[dff["Factors"]==1,"Rate"], 
+             dff.loc[dff["Factors"]==2,"Rate"],
+             dff.loc[dff["Factors"]==3,"Rate"],
+             dff.loc[dff["Factors"]==4,"Rate"],center='mean')
+
+import statsmodels.api as sm#anova test
+import statsmodels.formula.api as smf#used for fitting models
+from statsmodels.stats.multicomp import pairwise_tukeyhsd#used for tukey test
+
+res = smf.ols('Rate ~ Factors',data=dff).fit()
+table = sm.stats.anova_lm(res, typ=1)
+#p-value is  bigger than 0.05, so we don't reject H0, the difference is not significant
+#Perform multiple pairwise comparison (Tukey HSD)
+tukeytable=pairwise_tukeyhsd(endog=dff['Rate'], groups=dff['Factors'], alpha=0.05)
+print(tukeytable)
+print(table)
+
+#All individual p-values are higher than 0.05, we don't reject  𝐻0 , and conclude that, there are no signficant pairwise differences in factors.
+
+
